@@ -122,3 +122,4 @@ body.private #pbadge{display:block}
 body.private{--strip:#3a3a40;--act:#4a4a52;--pill:#33333a;--txt:#fff;--mut:#cfcfd6}
 body.private #omni:focus-within{background:#222}
 body.private .tab:hover{background:#ffffff14}
+#pop.ctx{min-width:250px;padding:6px}

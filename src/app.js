@@ -79,6 +79,8 @@ function mkTab(kind,url){
     const upd=()=>{t.url=w.getURL();draw();if(cur===t)sync()};
     w.addEventListener("did-navigate",e=>{if(!PRIV){D.hist.unshift({u:e.url,d:Date.now()});D.hist=D.hist.slice(0,200);save()}upd()});
     w.addEventListener("found-in-page",e=>{if(cur===t)$("fc").textContent=e.result.matches?e.result.activeMatchOrdinal+"/"+e.result.matches:"0/0"});
+    w.addEventListener("focus",()=>{if($("pop").className==="ctx")$("pop").style.display="none"});
+    w.addEventListener("context-menu",e=>ctxMenu(t,w,e.params));
     w.addEventListener("did-navigate-in-page",upd);
     t.el=w;
   }else{const d=document.createElement("div");d.className="page "+(kind==="home"?"newtab":"");t.el=d;}
@@ -124,6 +126,34 @@ function fbar(){
   const o=$("others");if(o)o.onclick=()=>favPop(o);
   const i=$("imp");if(i)i.onclick=()=>pop(i,'<div class="nt">L\'import depuis un autre navigateur n\'est pas encore disponible.</div>');
   $("appsb").onclick=()=>pop($("appsb"),D.sc.map((s,k)=>`<div class="it" data-u="${esc(s.u)}">${esc(s.t)}</div>`).join(""));
+}
+
+/* clic droit dans une page */
+function ctxMenu(t,w,p){
+  const r=w.getBoundingClientRect();const img=p.mediaType==="image"&&p.srcURL;const link=p.linkURL;
+  const items=[];
+  if(img){items.push(["ci","Copier l'image"],["cl","Copier le lien"],["sj","Enregistrer l'image en JPEG"],["sa","Enregistrer l'image sous"]);}
+  else{
+    if(link){items.push(["ol","Ouvrir le lien dans un nouvel onglet"],["cl","Copier le lien"]);}
+    if(p.selectionText){items.push(["ct","Copier"]);}
+    items.push(["bk","Retour"],["rl","Actualiser"]);
+  }
+  const m=$("pop");m.className="ctx";
+  m.innerHTML=items.map(i=>`<div class="it" data-c="${i[0]}">${i[1]}</div>`).join("");
+  m.style.display="block";m.style.right="auto";
+  const x=Math.min(r.left+p.x,innerWidth-m.offsetWidth-6),y=Math.min(r.top+p.y,innerHeight-m.offsetHeight-6);
+  m.style.left=Math.max(4,x)+"px";m.style.top=Math.max(4,y)+"px";
+  m.querySelectorAll("[data-c]").forEach(e=>e.onclick=async()=>{m.style.display="none";const c=e.dataset.c;
+    const id=w.getWebContentsId();
+    if(c==="ci"){window.wwwApi.copyImage(id,p.x,p.y);toast("Image copiée")}
+    else if(c==="cl"){window.wwwApi.copyText(link||p.srcURL);toast("Lien copié")}
+    else if(c==="ct"){window.wwwApi.copyText(p.selectionText);toast("Copié")}
+    else if(c==="ol"){newTab("web",link)}
+    else if(c==="bk"){try{w.goBack()}catch(e){}}
+    else if(c==="rl"){try{w.reload()}catch(e){}}
+    else if(c==="sa"){const f=await window.wwwApi.saveImageAs({url:p.srcURL,part:PART});if(f)toast("Image enregistrée");else if(f===false)toast("Impossible d'enregistrer l'image")}
+    else if(c==="sj"){const f=await window.wwwApi.saveImageJpeg({url:p.srcURL,part:PART,id,x:p.x,y:p.y});toast(f?"Image enregistrée en JPEG dans Téléchargements":"Impossible d'enregistrer l'image")}
+  });
 }
 
 /* popups */

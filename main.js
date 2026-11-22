@@ -1,4 +1,4 @@
-const { app, BrowserWindow, session, ipcMain, shell, net, webContents } = require('electron');
+const { app, BrowserWindow, session, ipcMain, shell, net, webContents, clipboard, dialog, nativeImage } = require('electron');
 const path = require('path'), fs = require('fs'), http = require('http'), crypto = require('crypto');
 const { checkUpdate } = require('./updater');
 
@@ -108,6 +108,49 @@ app.whenReady().then(async () => {
   ipcMain.handle('downloads', () => downloads.map(d => ({ ...d })));
   ipcMain.handle('show-item', (_e, p) => shell.showItemInFolder(p));
   ipcMain.handle('open-item', (_e, p) => shell.openPath(p));
+  /* ---- clic droit sur une image ---- */
+  const getBuf = async (url, part) => {
+    if (url.startsWith('data:')) { const i = url.indexOf(','); const meta = url.slice(5, i);
+      return meta.includes(';base64') ? Buffer.from(url.slice(i + 1), 'base64') : Buffer.from(decodeURIComponent(url.slice(i + 1))); }
+    const r = await session.fromPartition(part || 'persist:www').fetch(url);
+    return Buffer.from(await r.arrayBuffer());
+  };
+  const baseName = (url, ext) => { let n = 'image';
+    try { n = decodeURIComponent(new URL(url).pathname.split('/').pop() || 'image'); } catch (e) {}
+    n = n.replace(/[\\/:*?"<>|]/g, '_').replace(/\.[a-z0-9]{2,5}$/i, '') || 'image'; return n + ext; };
+  const extOf = (url, buf) => { const m = /\.(png|jpe?g|gif|webp|bmp|svg|ico)(\?|$)/i.exec(url); if (m) return '.' + m[1].toLowerCase();
+    if (buf[0] === 0x89) return '.png'; if (buf[0] === 0xff) return '.jpg'; if (buf[0] === 0x47) return '.gif'; if (buf[0] === 0x52) return '.webp'; return '.png'; };
+  ipcMain.handle('copy-text', (_e, t) => clipboard.writeText(String(t || '')));
+  ipcMain.handle('copy-image', (_e, id, x, y) => { const wc = webContents.fromId(id); if (wc) wc.copyImageAt(Math.round(x), Math.round(y)); });
+  ipcMain.handle('save-image-as', async (e, o) => {
+    try {
+      const buf = await getBuf(o.url, o.part); const ext = extOf(o.url, buf);
+      const win = BrowserWindow.fromWebContents(e.sender);
+      const r = await dialog.showSaveDialog(win, { defaultPath: path.join(app.getPath('downloads'), baseName(o.url, ext)),
+        filters: [{ name: 'Image', extensions: [ext.slice(1)] }, { name: 'Tous les fichiers', extensions: ['*'] }] });
+      if (r.canceled || !r.filePath) return null;
+      fs.writeFileSync(r.filePath, buf);
+      downloads.unshift({ name: path.basename(r.filePath), path: r.filePath, state: 'terminé', date: Date.now() });
+      return r.filePath;
+    } catch (err) { return false; }
+  });
+  ipcMain.handle('save-image-jpeg', async (_e, o) => {
+    try {
+      let img = null;
+      const wc = o.id ? webContents.fromId(o.id) : null;
+      if (wc) { const pt = clipboard.readText(), pi = clipboard.readImage();
+        wc.copyImageAt(Math.round(o.x), Math.round(o.y)); await new Promise(r => setTimeout(r, 250));
+        const c = clipboard.readImage(); if (!c.isEmpty()) img = c;
+        clipboard.clear(); if (pt) clipboard.writeText(pt); else if (!pi.isEmpty()) clipboard.writeImage(pi); }
+      if (!img) { const n = nativeImage.createFromBuffer(await getBuf(o.url, o.part)); if (!n.isEmpty()) img = n; }
+      if (!img) return false;
+      const dir = app.getPath('downloads'); let f = path.join(dir, baseName(o.url, '.jpg')), k = 1;
+      while (fs.existsSync(f)) f = path.join(dir, baseName(o.url, '') + ' (' + (k++) + ').jpg');
+      fs.writeFileSync(f, img.toJPEG(92));
+      downloads.unshift({ name: path.basename(f), path: f, state: 'terminé', date: Date.now() });
+      return f;
+    } catch (err) { return false; }
+  });
   ses.on('will-download', (_e, item) => {
     const file = path.join(app.getPath('downloads'), item.getFilename());
     item.setSavePath(file);

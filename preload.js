@@ -11,5 +11,9 @@ contextBridge.exposeInMainWorld('wwwApi', {
   capture: id => inv('capture', id),
   downloads: () => inv('downloads'),
   showItem: p => inv('show-item', p),
-  openItem: p => inv('open-item', p)
+  openItem: p => inv('open-item', p),
+  copyText: t => inv('copy-text', t),
+  copyImage: (id, x, y) => inv('copy-image', id, x, y),
+  saveImageAs: o => inv('save-image-as', o),
+  saveImageJpeg: o => inv('save-image-jpeg', o)
 });
