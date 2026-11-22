@@ -47,20 +47,19 @@ webview,.page{position:absolute;inset:0;width:100%;height:100%;display:none}
 webview.on{display:flex}
 .page.on{display:block}
 /* page nouvel onglet */
-.newtab{background:radial-gradient(ellipse at 20% 110%,#e9a56b55,transparent 45%),radial-gradient(ellipse at 70% 105%,#f0b36e44,transparent 40%),linear-gradient(180deg,#1a2147 0%,#3a3d78 38%,#6d6aa6 62%,#a98fb8 78%,#d9b9b7 100%);color:#fff;overflow:hidden}
-.newtab::before{content:"";position:absolute;left:0;right:0;bottom:0;height:46%;background:linear-gradient(180deg,transparent,#e8e4f0 28%,#dad6ea 100%);clip-path:polygon(0 38%,12% 22%,24% 34%,38% 14%,52% 30%,66% 12%,80% 28%,100% 18%,100% 100%,0 100%);opacity:.9}
+.newtab{background:#1a2147 url(wallpaper.jpg) center/cover no-repeat;color:#fff;overflow:hidden}
 .newtab>*{position:relative}
-.nt-apps{position:absolute!important;left:50px;top:42px;width:34px;height:34px;display:grid;grid-template-columns:repeat(3,5px);gap:4px;padding:6px;cursor:pointer}
+.nt-apps{position:absolute!important;left:44px;top:42px;width:34px;height:34px;display:grid;grid-template-columns:repeat(3,5px);gap:4px;padding:6px;cursor:pointer}
 .nt-apps i{width:5px;height:5px;border-radius:50%;background:#fff}
-.nt-top{position:absolute!important;right:42px;top:42px;display:flex;gap:30px;align-items:center;font-size:18px}
+.nt-top{position:absolute!important;right:34px;top:40px;display:flex;gap:30px;align-items:center;font-size:18px}
 .nt-top .pen{cursor:pointer}
 .nt-top .pen svg{width:30px;height:30px;stroke-width:1.5}
 .nt-top .w{display:flex;align-items:center;gap:10px}
 .nt-top .w svg{width:34px;height:34px}
-.nt-search{position:absolute!important;left:50%;top:150px;transform:translateX(-50%);width:min(63%,1200px);height:70px;background:#fff;border-radius:35px;display:flex;align-items:center;padding:0 28px;gap:22px;box-shadow:0 2px 12px #0004}
+.nt-search{position:absolute!important;left:50%;top:125px;transform:translateX(-50%);width:min(63%,1200px);height:69px;background:#fff;border-radius:35px;display:flex;align-items:center;padding:0 28px;gap:22px;box-shadow:0 2px 12px #0004}
 .nt-search svg{width:28px;height:28px;stroke:#444;stroke-width:1.4}
 .nt-search input{flex:1;border:0;outline:none;font-size:22px;color:#222;background:none;user-select:text}
-.tiles{position:absolute!important;left:50%;top:260px;transform:translateX(-50%);display:flex;gap:8px;justify-content:center}
+.tiles{position:absolute!important;left:50%;top:222px;transform:translateX(-50%);display:flex;gap:8px;justify-content:center}
 .tile{width:128px;display:flex;flex-direction:column;align-items:center;gap:8px;cursor:pointer;position:relative;text-shadow:0 1px 4px #0009}
 .tile .ic{width:54px;height:54px;border-radius:12px;background:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:22px;box-shadow:0 1px 6px #0003}
 .tile .ic svg{width:26px;height:26px;stroke:#444;stroke-width:1.5}
@@ -86,3 +85,8 @@ webview.on{display:flex}
 .avatar{display:flex;align-items:center;justify-content:center;flex:none}
 .avatar svg{width:18px;height:18px}
 #pop .it span{width:18px;text-align:center}
+
+.tile .ic img{width:54px;height:54px;border-radius:12px;display:block}
+.tile .ic{overflow:hidden;background:none;box-shadow:none}
+#addsc .ic{background:#fff;box-shadow:0 1px 6px #0003}
+.tile .ic:not(:has(img)){background:#fff;color:#444;box-shadow:0 1px 6px #0003}

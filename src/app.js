@@ -16,15 +16,17 @@ const IC={
  plus:'<path d="M8 3v10M3 8h10"/>',
  x:'<path d="M4 4l8 8M12 4l-8 8"/>',
  page:'<rect x="2" y="3" width="12" height="10" rx="2"/><path d="M2 6.5h12M4.5 4.7h.1"/>',
+ person:'<circle cx="8" cy="5.5" r="2.8"/><path d="M2.8 14c.6-3 2.7-4.5 5.2-4.5s4.6 1.5 5.2 4.5"/>',
  cloud:'<path d="M5 12.5h6.5a2.5 2.5 0 0 0 .3-5A3.7 3.7 0 0 0 4.6 6.6 3 3 0 0 0 5 12.5z"/>'
 };
 const svg=(n,c)=>`<svg viewBox="0 0 16 16"${c?` class="${c}"`:""}>${IC[n]}</svg>`;
 const ENGINE="https://www.google.com/search?q=";
 const $=id=>document.getElementById(id);
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
-const SC0=[["Convertio","https://convertio.co","#e5322d"],["Edifice","https://www.edifice.io","#7c5cff"],["Espace inscrit","https://inscrits.cned.fr","#0a7d6e"],["YouTube","https://www.youtube.com","#ff0000"],["Tinkercad","https://www.tinkercad.com","#1477d2"],["Clinique Vétérinaire","https://www.google.com/search?q=clinique+vétérinaire","#2a6fb0"]].map(s=>({t:s[0],u:s[1],c:s[2]}));
-let D={bm:[],hist:[],sc:SC0,bg:null};
+const SC0=[["Convertio","https://convertio.co","convertio"],["Edifice","https://www.edifice.io","edifice"],["Espace inscrit","https://inscrits.cned.fr","cned"],["YouTube","https://www.youtube.com","youtube"],["Tinkercad","https://www.tinkercad.com","tinkercad"],["GitHub","https://github.com","github"],["Clinique Vétérinaire","https://www.google.com/search?q=clinique+vétérinaire","clinique"]].map(s=>({t:s[0],u:s[1],i:s[2]}));
+let D={bm:[],hist:[],sc:SC0,bg:null,prof:null};
 try{const r=localStorage.getItem("www2");if(r)D=Object.assign(D,JSON.parse(r))}catch(e){}
+if(D.v!==3){const known=SC0.map(x=>x.t);D.sc=SC0.concat((D.sc||[]).filter(x=>!known.includes(x.t)&&x.t!=="Clinique Vétérinaire"&&!x.i));D.v=3;try{localStorage.setItem("www2",JSON.stringify(D))}catch(e){}}
 const save=()=>{try{localStorage.setItem("www2",JSON.stringify(D))}catch(e){}};
 let tabs=[],cur=null,nid=1,editing=false,temp=null;
 
@@ -53,7 +55,7 @@ $("osearch").innerHTML=svg("search");$("ext").innerHTML=svg("ext");$("favs").inn
 function mkTab(kind,url){
   const t={id:nid++,kind,title:kind==="web"?url:kind==="hist"?"Historique":"Nouvel onglet",icon:null};
   if(kind==="web"){
-    const w=document.createElement("webview");w.src=url;w.setAttribute("allowpopups","");
+    const w=document.createElement("webview");w.setAttribute("partition","persist:www");w.src=url;w.setAttribute("allowpopups","");
     w.addEventListener("page-title-updated",e=>{t.title=e.title;draw()});
     w.addEventListener("page-favicon-updated",e=>{t.icon=e.favicons[0];draw()});
     const upd=()=>{t.url=w.getURL();draw();if(cur===t)sync()};
@@ -115,7 +117,21 @@ $("favs").onclick=()=>favPop($("favs"));
 $("tabmenu").onclick=()=>{const p=pop($("tabmenu"),tabs.map(t=>`<div class="it" data-t="${t.id}">${esc(t.title)}</div>`).join(""));
   p.querySelectorAll("[data-t]").forEach(e=>e.onclick=()=>select(tabs.find(t=>t.id==e.dataset.t)))};
 $("ext").onclick=()=>pop($("ext"),'<div class="nt">Aucune extension installée.</div>',true);
-$("prof").onclick=()=>pop($("prof"),'<div class="nt">Profil : Marius</div>',true);
+const PROV={google:{n:"Google",login:"https://accounts.google.com/signin",acct:"https://myaccount.google.com",c:"#4285f4"},ms:{n:"Microsoft",login:"https://login.live.com",acct:"https://account.microsoft.com",c:"#00a4ef"}};
+function drawProf(){const b=$("prof");b.innerHTML=D.prof&&D.prof.name?esc(D.prof.name[0].toUpperCase()):svg("person");b.title=D.prof&&D.prof.name?D.prof.name:"Se connecter"}
+$("prof").onclick=()=>{
+  const a=$("prof"),pr=D.prof;
+  if(pr&&pr.name){const v=PROV[pr.prov];
+    const p=pop(a,`<div class="nt"><b>${esc(pr.name)}</b><br><span class="mut">Compte ${v.n}</span></div><div class="it" data-u="${v.acct}">Gérer mon compte ${v.n}</div><div class="it" data-a="out">Se déconnecter</div>`,true);
+    p.querySelector("[data-a=out]").onclick=async()=>{try{await window.wwwApi.logout()}catch(e){}D.prof=null;save();drawProf();p.style.display="none"};
+  }else{
+    const p=pop(a,`<div class="nt">Connectez-vous pour retrouver vos comptes sur les sites.</div><div class="it" data-a="google"><span style="color:#4285f4;font-weight:700">G</span>Continuer avec Google</div><div class="it" data-a="ms"><span style="color:#00a4ef;font-weight:700">M</span>Continuer avec Microsoft</div>`,true);
+    p.querySelectorAll("[data-a]").forEach(x=>x.onclick=()=>{const k=x.dataset.a,v=PROV[k];
+      newTab("web",v.login);
+      const q=pop(a,`<div class="nt">Connectez-vous à ${v.n} dans l'onglet qui vient de s'ouvrir, puis indiquez le nom à afficher :</div><input id="pn" placeholder="Votre prénom"><button class="ok" id="pok">Enregistrer le profil</button>`,true);
+      q.querySelector("#pok").onclick=()=>{const n=q.querySelector("#pn").value.trim();if(!n)return;D.prof={name:n,prov:k};save();drawProf();q.style.display="none"}});
+  }};
+drawProf();
 $("more").onclick=()=>{const p=pop($("more"),'<div class="it" data-a="nt">Nouvel onglet<span style="margin-left:auto;color:#888">Ctrl+T</span></div><div class="it" data-a="h">Historique</div><div class="it" data-a="f">Favoris</div><div class="it" data-a="q">Quitter</div>',true);
   p.querySelectorAll("[data-a]").forEach(e=>e.onclick=()=>{const a=e.dataset.a;p.style.display="none";
     if(a==="nt")newTab("home");if(a==="h")newTab("hist");if(a==="f")favPop($("favs"));if(a==="q")window.close()})};
@@ -125,10 +141,10 @@ $("conv").onclick=()=>newTab("web","https://copilot.microsoft.com");
 function fill(t){
   if(t.kind==="home"){
     const el=t.el;
-    const tiles=D.sc.map((s,i)=>`<div class="tile" data-u="${esc(s.u)}"><div class="ic" style="color:${s.c}">${esc(s.t[0])}</div><div class="lb">${esc(s.t)}</div><div class="rm" data-r="${i}">✕</div></div>`).join("")
+    const tiles=D.sc.map((s,i)=>`<div class="tile" data-u="${esc(s.u)}"><div class="ic">${s.i?`<img src="icons/${s.i}.png">`:esc(s.t[0])}</div><div class="lb">${esc(s.t)}</div><div class="rm" data-r="${i}">✕</div></div>`).join("")
       +`<div class="tile" id="addsc"><div class="ic">${svg("plus")}</div><div class="lb">Ajouter un raccourci</div></div>`;
     el.innerHTML=`<div class="nt-apps">${"<i></i>".repeat(9)}</div>
-    <div class="nt-top"><div class="w">Ceyreste ${svg("cloud")}<span id="tmp">${temp===null?"":temp+"°C"}</span></div><div class="pen" id="pen">${svg("pen")}</div></div>
+    <div class="nt-top"><div class="w">Ceyreste <svg viewBox="0 0 34 34"><circle cx="13" cy="13" r="7.5" fill="#f6a623"/><path d="M10 27h15a5 5 0 0 0 .6-10 7.4 7.4 0 0 0-14.3-1.2A6 6 0 0 0 10 27z" fill="#e6edf9"/></svg><span id="tmp">${temp===null?"":temp+"°C"}</span></div><div class="pen" id="pen">${svg("pen")}</div></div>
     <form class="nt-search" id="nts">${svg("search")}<input id="ntq" placeholder="Rechercher sur le Web" autocomplete="off"></form>
     <div class="tiles ${editing?"editing":""}">${tiles}</div>
     <div class="nt-acc">Accessibilité : partiellement conforme</div>`;
@@ -146,7 +162,7 @@ function fill(t){
         if(a==="edit"){editing=!editing;fill(t)}})};
     el.querySelector("#addsc").onclick=()=>{const p=pop(el.querySelector("#addsc"),'<input id="sn" placeholder="Nom"><input id="su" placeholder="Adresse (ex : youtube.com)"><button class="ok" id="sok">Ajouter</button>');
       p.querySelector("#sok").onclick=()=>{const n=p.querySelector("#sn").value.trim(),u=toUrl(p.querySelector("#su").value);
-        if(n&&u&&!u.startsWith(ENGINE)){D.sc.push({t:n,u,c:"#444"});save();p.style.display="none";fill(t)}}};
+        if(n&&u&&!u.startsWith(ENGINE)){D.sc.push({t:n,u});save();p.style.display="none";fill(t)}}};
     el.querySelector(".nt-apps").onclick=()=>$("appsb").click();
     el.querySelector("#ntq").focus();
     if(temp===null)loadTemp();
