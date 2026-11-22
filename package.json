@@ -1,6 +1,6 @@
 {
   "name": "world-wide-web",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "description": "World Wide Web - navigateur web",
   "main": "main.js",
   "scripts": {
