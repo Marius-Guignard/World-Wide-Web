@@ -1,0 +1,12 @@
+{
+  "name": "world-wide-web",
+  "version": "1.0.1",
+  "description": "World Wide Web - navigateur web",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron ."
+  },
+  "devDependencies": {
+    "electron": "^33.2.0"
+  }
+}

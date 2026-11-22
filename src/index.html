@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https: http:; connect-src https://api.open-meteo.com; frame-src https: http:">
+<title>World Wide Web</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="strip">
+  <button class="sq" id="tabmenu" data-pop title="Actions des onglets"></button>
+  <div id="tabs"></div>
+  <button class="sq" id="plus" title="Nouvel onglet (Ctrl+T)"></button>
+  <div id="drag"></div>
+</div>
+<div id="tool">
+  <button class="ib" id="back" title="Précédent"></button>
+  <button class="ib" id="fwd" title="Suivant"></button>
+  <button class="ib" id="reload" title="Actualiser"></button>
+  <div id="omni"><span id="osearch"></span><input id="url" placeholder="Rechercher ou entrer une adresse web" autocomplete="off" spellcheck="false"><button class="ib sm" id="star" title="Ajouter aux favoris"></button></div>
+  <button class="ib" id="ext" data-pop title="Extensions"></button>
+  <span class="vsep"></span>
+  <button class="ib" id="favs" data-pop title="Favoris"></button>
+  <button class="avatar" id="prof" data-pop>M</button>
+  <button class="ib" id="more" data-pop title="Paramètres et plus"></button>
+  <button id="conv"><i></i>Conversation</button>
+</div>
+<div id="fbar"></div>
+<div id="main"></div>
+<div id="pop"></div>
+<script src="app.js"></script>
+</body>
+</html>
