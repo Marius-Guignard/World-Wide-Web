@@ -1,4 +1,4 @@
-const { app, BrowserWindow, session, ipcMain, shell, net } = require('electron');
+const { app, BrowserWindow, session, ipcMain, shell, net, webContents } = require('electron');
 const path = require('path'), fs = require('fs'), http = require('http'), crypto = require('crypto');
 const { checkUpdate } = require('./updater');
 
@@ -64,24 +64,57 @@ ipcMain.handle('login', async (_e, prov) => {
 });
 
 /* ---------- Fenêtre ---------- */
-function createWindow() {
+function createWindow(priv) {
   const win = new BrowserWindow({
-    width: 1280, height: 800, minWidth: 600, minHeight: 400, title: 'World Wide Web', backgroundColor: '#f8e4e4',
+    width: 1280, height: 800, minWidth: 600, minHeight: 400, title: 'World Wide Web', backgroundColor: priv ? '#3a3a40' : '#f8e4e4',
     icon: path.join(__dirname, 'icon.ico'),
     titleBarStyle: 'hidden',
-    titleBarOverlay: { color: '#f8e4e4', symbolColor: '#222222', height: 40 },
+    titleBarOverlay: { color: priv ? '#3a3a40' : '#f8e4e4', symbolColor: priv ? '#ffffff' : '#222222', height: 40 },
     webPreferences: { webviewTag: true, contextIsolation: true, preload: path.join(__dirname, 'preload.js') }
   });
   win.setMenuBarVisibility(false);
   win.webContents.on('did-attach-webview', (e, wc) => {
     wc.setWindowOpenHandler(({ url }) => { win.webContents.send('open-url', url); return { action: 'deny' }; });
+    // raccourcis clavier utilisables aussi quand une page web a le focus
+    wc.on('before-input-event', (ev, input) => {
+      if (input.type !== 'keyDown') return;
+      const k = input.key.length === 1 ? input.key.toLowerCase() : input.key;
+      const ctrl = input.control || input.meta, shift = input.shift;
+      let combo = null;
+      if (ctrl && !shift && ['t', 'w', 'n', 'h', 'j', 'p', 'f', 'l', '+', '=', '-', '0'].includes(k)) combo = 'ctrl+' + k;
+      if (ctrl && shift && ['n', 's', 'o', 'Delete'].includes(k)) combo = 'ctrl+shift+' + k;
+      if (k === 'F11' || k === 'F12') combo = k;
+      if (combo) { ev.preventDefault(); win.webContents.send('shortcut', combo); }
+    });
   });
-  win.loadFile(path.join(__dirname, 'src', 'index.html'));
+  win.loadFile(path.join(__dirname, 'src', 'index.html'), priv ? { query: { private: '1' } } : undefined);
+  return win;
 }
+const downloads = [];
 app.whenReady().then(async () => {
   const ses = session.fromPartition('persist:www');
   ses.setUserAgent(ses.getUserAgent().replace(/\s(Electron|world-wide-web)\/[\d.]+/gi, ''));
   ipcMain.handle('logout', () => ses.clearStorageData());
+  ipcMain.handle('clear-data', async () => { await ses.clearStorageData(); await ses.clearCache(); });
+  ipcMain.handle('new-window', (_e, priv) => { createWindow(!!priv); });
+  ipcMain.handle('fullscreen', e => { const w = BrowserWindow.fromWebContents(e.sender); w.setFullScreen(!w.isFullScreen()); });
+  ipcMain.handle('capture', async (e, id) => {
+    const wc = id ? webContents.fromId(id) : e.sender;
+    const img = await wc.capturePage();
+    const file = path.join(app.getPath('downloads'), 'Capture ' + new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19) + '.png');
+    fs.writeFileSync(file, img.toPNG());
+    return file;
+  });
+  ipcMain.handle('downloads', () => downloads.map(d => ({ ...d })));
+  ipcMain.handle('show-item', (_e, p) => shell.showItemInFolder(p));
+  ipcMain.handle('open-item', (_e, p) => shell.openPath(p));
+  ses.on('will-download', (_e, item) => {
+    const file = path.join(app.getPath('downloads'), item.getFilename());
+    item.setSavePath(file);
+    const rec = { name: item.getFilename(), path: file, state: 'en cours', date: Date.now() };
+    downloads.unshift(rec);
+    item.on('done', (_ev, state) => { rec.state = state === 'completed' ? 'terminé' : 'échoué'; });
+  });
   if (await checkUpdate()) { app.relaunch(); app.exit(0); return; }
   createWindow();
 });

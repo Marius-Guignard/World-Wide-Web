@@ -1,42 +1,42 @@
 @echo off
 chcp 65001 >nul
-title Publier World Wide Web sur GitHub
+title Publier World Wide Web
 cd /d "%~dp0.."
 where git >nul 2>nul || (echo Git n'est pas installe : https://git-scm.com/download/win & pause & exit /b 1)
-where node >nul 2>nul || (echo Node.js n'est pas installe. & pause & exit /b 1)
+where node >nul 2>nul || (echo Node.js n'est pas installe : https://nodejs.org & pause & exit /b 1)
 
 set "DEPOT="
 node dist\depot.js > "%TEMP%\www_depot.txt"
 set /p DEPOT=<"%TEMP%\www_depot.txt"
-if not "%DEPOT%"=="" goto suite
+if "%DEPOT%"=="" set "DEPOT=Marius-Guignard/World-Wide-Web"
 
-echo Colle l'adresse de ton depot GitHub, par exemple :
-echo    https://github.com/ton-nom/World-Wide-Web
-set /p URL=Adresse : 
-node dist\depot.js "%URL%" > "%TEMP%\www_depot.txt"
-set /p DEPOT=<"%TEMP%\www_depot.txt"
-if "%DEPOT%"=="" (
-  echo Adresse invalide. Elle doit ressembler a https://github.com/ton-nom/World-Wide-Web
-  pause & exit /b 1
-)
-
-:suite
 echo Depot : %DEPOT%
 if not exist .git git init -b main
+git config user.name >nul 2>nul || git config user.name "Marius"
+git config user.email >nul 2>nul || git config user.email "marius@world-wide-web.local"
 git remote remove origin >nul 2>nul
 git remote add origin https://github.com/%DEPOT%.git
 
 call npm version patch --no-git-tag-version >nul
 git add -A
-git commit -m "Mise a jour de World Wide Web"
-git pull --rebase origin main >nul 2>nul
+git commit -m "Mise a jour de World Wide Web" >nul
+git pull --rebase --autostash origin main >nul 2>nul
+if errorlevel 1 git rebase --abort >nul 2>nul
 git push -u origin main
 if errorlevel 1 (
+  echo Le depot contient autre chose, j'envoie ta version complete...
+  git push -u origin main --force
+)
+if errorlevel 1 (
   echo.
-  echo La publication a echoue. Verifie l'adresse du depot ^(%DEPOT%^) et ta connexion GitHub.
+  echo La publication a echoue. Verifie ta connexion internet et ta connexion GitHub.
   pause & exit /b 1
 )
+
+powershell -NoProfile -Command "$d=[Environment]::GetFolderPath('Desktop');$s=(New-Object -ComObject WScript.Shell).CreateShortcut($d+'\World Wide Web.lnk');$s.TargetPath='%CD%\dist\Lancer.bat';$s.WorkingDirectory='%CD%';$s.IconLocation='%CD%\icon.ico';$s.WindowStyle=7;$s.Save()" >nul 2>nul
+
 echo.
 echo Publie sur https://github.com/%DEPOT%
-echo Les apps se mettront a jour au prochain lancement.
+echo Le raccourci "World Wide Web" est sur ton bureau.
+echo L'appli se mettra a jour a chaque lancement.
 pause

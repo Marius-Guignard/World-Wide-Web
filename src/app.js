@@ -17,9 +17,26 @@ const IC={
  x:'<path d="M4 4l8 8M12 4l-8 8"/>',
  page:'<rect x="2" y="3" width="12" height="10" rx="2"/><path d="M2 6.5h12M4.5 4.7h.1"/>',
  person:'<circle cx="8" cy="5.5" r="2.8"/><path d="M2.8 14c.6-3 2.7-4.5 5.2-4.5s4.6 1.5 5.2 4.5"/>',
+ win:'<rect x="2" y="3" width="12" height="10" rx="2"/>',
+ priv:'<rect x="2" y="3" width="12" height="10" rx="2"/><circle cx="6" cy="9" r="1.3"/><circle cx="10" cy="9" r="1.3"/><path d="M5 6.800h6"/>',
+ zoom:'<circle cx="7" cy="7" r="4.500"/><path d="M10.500 10.500L14 14M5 7h4M7 5v4"/>',
+ clock:'<circle cx="8" cy="8" r="5.500"/><path d="M8 5v3.200l2 1.300"/>',
+ tabs:'<rect x="2" y="4" width="12" height="8" rx="2"/><path d="M5 8h6"/>',
+ dl:'<path d="M8 2.500v7M5 6.800l3 3 3-3M3 13h10"/>',
+ trash:'<path d="M3 4.500h10M6.500 4.500V3h3v1.500M4.500 4.500l.6 8.500h5.800l.6-8.500M7 7v4M9 7v4"/>',
+ print:'<rect x="4" y="2.500" width="8" height="3.500"/><rect x="2.500" y="6" width="11" height="5" rx="1.500"/><rect x="4.500" y="9.500" width="7" height="4"/>',
+ trans:'<path d="M2.500 4h6M5.500 2.500V4M3.500 4c.6 2.600 2.200 4.200 4 5M7.500 4c-.6 2.600-2.200 4.200-4.500 5.200M9.500 13.500l2.200-6 2.200 6M10.200 11.700h3"/>',
+ split:'<rect x="2" y="3" width="12" height="10" rx="2"/><path d="M8 3v10"/>',
+ cam:'<rect x="2.500" y="3.500" width="11" height="9" rx="2" stroke-dasharray="2 2"/>',
+ tools:'<rect x="3" y="3" width="10" height="10" rx="2"/><path d="M6 8h4"/>',
+ full:'<path d="M9.500 2.500h4v4M6.500 13.500h-4v-4M13.500 2.500L9 7M2.500 13.500L7 9"/>',
+ chevr:'<path d="M6 3.500L10.500 8 6 12.500"/>',
  cloud:'<path d="M5 12.5h6.5a2.5 2.5 0 0 0 .3-5A3.7 3.7 0 0 0 4.6 6.6 3 3 0 0 0 5 12.5z"/>'
 };
 const svg=(n,c)=>`<svg viewBox="0 0 16 16"${c?` class="${c}"`:""}>${IC[n]}</svg>`;
+const PRIV=new URLSearchParams(location.search).has("private");
+const PART=PRIV?"inprivate":"persist:www";
+if(PRIV)document.body.classList.add("private");
 const ENGINE="https://www.google.com/search?q=";
 const $=id=>document.getElementById(id);
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -53,21 +70,23 @@ $("osearch").innerHTML=svg("search");$("ext").innerHTML=svg("ext");$("favs").inn
 
 /* onglets */
 function mkTab(kind,url){
-  const t={id:nid++,kind,title:kind==="web"?url:kind==="hist"?"Historique":"Nouvel onglet",icon:null};
+  const t={id:nid++,kind,title:kind==="web"?url:kind==="hist"?"Historique":kind==="dl"?"Téléchargements":"Nouvel onglet",icon:null};
   if(kind==="web"){
-    const w=document.createElement("webview");w.setAttribute("partition","persist:www");w.src=url;w.setAttribute("allowpopups","");
+    const w=document.createElement("webview");w.setAttribute("partition",PART);w.src=url;w.setAttribute("allowpopups","");
+    w.addEventListener("dom-ready",()=>{if(t.zoom&&t.zoom!==1){try{w.setZoomFactor(t.zoom)}catch(e){}}});
     w.addEventListener("page-title-updated",e=>{t.title=e.title;draw()});
     w.addEventListener("page-favicon-updated",e=>{t.icon=e.favicons[0];draw()});
     const upd=()=>{t.url=w.getURL();draw();if(cur===t)sync()};
-    w.addEventListener("did-navigate",e=>{D.hist.unshift({u:e.url,d:Date.now()});D.hist=D.hist.slice(0,200);save();upd()});
+    w.addEventListener("did-navigate",e=>{if(!PRIV){D.hist.unshift({u:e.url,d:Date.now()});D.hist=D.hist.slice(0,200);save()}upd()});
+    w.addEventListener("found-in-page",e=>{if(cur===t)$("fc").textContent=e.result.matches?e.result.activeMatchOrdinal+"/"+e.result.matches:"0/0"});
     w.addEventListener("did-navigate-in-page",upd);
     t.el=w;
   }else{const d=document.createElement("div");d.className="page "+(kind==="home"?"newtab":"");t.el=d;}
   $("main").appendChild(t.el);tabs.push(t);return t;
 }
 function newTab(kind,url){const t=mkTab(kind||"home",url);select(t);if(t.kind!=="web")fill(t);return t}
-function select(t){cur=t;tabs.forEach(x=>x.el.classList.toggle("on",x===t));$("pop").style.display="none";draw();sync()}
-function closeTab(t){const i=tabs.indexOf(t);t.el.remove();tabs.splice(i,1);
+function select(t){closeSplit();closeFind();cur=t;tabs.forEach(x=>x.el.classList.toggle("on",x===t));$("pop").style.display="none";draw();sync()}
+function closeTab(t){clearInterval(t._r);const i=tabs.indexOf(t);t.el.remove();tabs.splice(i,1);
   if(!tabs.length)return newTab("home");if(cur===t)select(tabs[Math.max(0,i-1)]);else draw()}
 function draw(){
   $("tabs").innerHTML=tabs.map(t=>`<div class="tab ${t===cur?"on":""}" data-i="${t.id}">${t.icon?`<img src="${esc(t.icon)}">`:svg(t.kind==="web"?"search":"page","ti")}<span>${esc(t.title)}</span><b data-x="${t.id}">${svg("x")}</b></div>`).join("");
@@ -108,7 +127,7 @@ function fbar(){
 }
 
 /* popups */
-function pop(a,html,right){const p=$("pop");p.innerHTML=html;p.style.display="block";const r=a.getBoundingClientRect();p.style.top=r.bottom+4+"px";
+function pop(a,html,right,cls){const p=$("pop");p.className=cls||"";p.innerHTML=html;p.style.display="block";const r=a.getBoundingClientRect();p.style.top=r.bottom+4+"px";
   if(right){p.style.left="auto";p.style.right=Math.max(4,innerWidth-r.right)+"px"}else{p.style.right="auto";p.style.left=Math.min(r.left,innerWidth-260)+"px"}
   p.querySelectorAll("[data-u]").forEach(e=>e.onclick=()=>{p.style.display="none";open(e.dataset.u)});return p}
 document.addEventListener("mousedown",e=>{if(!e.target.closest("#pop")&&!e.target.closest("[data-pop]")&&!e.target.closest("#fbar"))$("pop").style.display="none"});
@@ -137,9 +156,70 @@ $("prof").onclick=()=>{
       pop(a,`<div class="nt">${esc(msg)}</div>`,true)})
   }};
 drawProf();
-$("more").onclick=()=>{const p=pop($("more"),'<div class="it" data-a="nt">Nouvel onglet<span style="margin-left:auto;color:#888">Ctrl+T</span></div><div class="it" data-a="h">Historique</div><div class="it" data-a="f">Favoris</div><div class="it" data-a="q">Quitter</div>',true);
-  p.querySelectorAll("[data-a]").forEach(e=>e.onclick=()=>{const a=e.dataset.a;p.style.display="none";
-    if(a==="nt")newTab("home");if(a==="h")newTab("hist");if(a==="f")favPop($("favs"));if(a==="q")window.close()})};
+/* menu « ... » */
+const row=(ic,lb,sc,a,x)=>`<div class="mi ${x||""}" data-a="${a}">${svg(ic)}<span class="ml">${lb}</span>${x==="sub"?svg("chevr"):sc?`<span class="ms">${sc}</span>`:""}</div>`;
+const msep='<div class="msep"></div>';
+function toast(m){const d=document.createElement("div");d.className="toast";d.textContent=m;document.body.appendChild(d);setTimeout(()=>d.remove(),3500)}
+const zoomOf=()=>cur.zoom||1;
+const ZS=[.25,.33,.5,.67,.75,.8,.9,1,1.1,1.25,1.5,1.75,2,2.5,3,4,5];
+function applyZoom(t){const z=t.zoom||1;if(t.kind==="web"){try{t.el.setZoomFactor(z)}catch(e){}}else t.el.style.zoom=z}
+function zoomBy(d){const z=zoomOf();const n=d>0?ZS.find(x=>x>z+1e-6):[...ZS].reverse().find(x=>x<z-1e-6);if(!n)return;cur.zoom=n;applyZoom(cur)}
+function doPrint(){if(cur.kind==="web"){try{cur.el.print()}catch(e){}}else window.print()}
+async function doCapture(){let id=null;try{if(cur.kind==="web")id=cur.el.getWebContentsId()}catch(e){}
+  try{const f=await window.wwwApi.capture(id);toast("Capture enregistrée dans Téléchargements : "+f.split("\\").pop())}catch(e){toast("Capture impossible.")}}
+function openFind(){if(cur.kind!=="web")return;$("findbar").style.display="flex";$("fi").focus();$("fi").select()}
+function closeFind(){const f=$("findbar");if(f.style.display==="flex"){f.style.display="none";try{if(cur&&cur.kind==="web")cur.el.stopFindInPage("clearSelection")}catch(e){}}}
+function findNext(fw){const v=$("fi").value;if(v&&cur.kind==="web")cur.el.findInText(v,{forward:fw,findNext:true})}
+$("fi").oninput=()=>{const v=$("fi").value;if(cur.kind!=="web")return;if(v)cur.el.findInText(v);else{cur.el.stopFindInPage("clearSelection");$("fc").textContent=""}};
+$("fi").onkeydown=e=>{if(e.key==="Enter")findNext(!e.shiftKey);if(e.key==="Escape")closeFind()};
+$("fprev").onclick=()=>findNext(false);$("fnext").onclick=()=>findNext(true);$("fclose").onclick=closeFind;
+let splitEl=null,splitBtn=null;
+function closeSplit(){if(splitEl){splitEl.remove();splitBtn.remove();splitEl=splitBtn=null}$("main").classList.remove("splitting")}
+function toggleSplit(){if(splitEl)return closeSplit();if(cur.kind!=="web")return toast("Ouvrez d'abord une page web.");
+  const w=document.createElement("webview");w.setAttribute("partition",PART);w.setAttribute("allowpopups","");w.src=cur.url||"https://www.google.com";w.className="split on";
+  splitBtn=document.createElement("button");splitBtn.className="splitx";splitBtn.textContent="✕ Fermer";splitBtn.onclick=closeSplit;
+  $("main").append(w,splitBtn);$("main").classList.add("splitting");splitEl=w}
+function menuMain(){
+  const z=Math.round(zoomOf()*100);
+  const p=pop($("more"),
+    row("page","Nouvel onglet","Ctrl+T","nt")+row("win","Nouvelle fenêtre","Ctrl+N","nw")+row("priv","Nouvelle fenêtre InPrivate","Ctrl+Maj+N","np")+msep+
+    `<div class="mi zoom">${svg("zoom")}<span class="ml">Zoom</span><span class="zc"><b data-a="zo">−</b><span id="zv">${z} %</span><b data-a="zi">+</b></span><b class="zf" data-a="full">${svg("full")}</b></div>`+msep+
+    row("favs","Favoris","Ctrl+Maj+O","fav")+row("clock","Historique","Ctrl+H","hist")+row("tabs","Groupes d'onglets","","tg","sub")+row("dl","Téléchargements","Ctrl+J","dl")+row("ext","Extensions","","ex","sub")+msep+
+    row("trash","Supprimer les données de navigation","Ctrl+Maj+Suppr","clr")+row("print","Imprimer","Ctrl+P","print")+row("trans","Traduire","","tr","off")+row("split","Écran fractionné","","split")+row("cam","Capture d'écran","Ctrl+Maj+S","cap")+row("search","Rechercher sur la page","Ctrl+F","find")+row("tools","Outils supplémentaires","","tools","sub")+msep+row("x","Fermer World Wide Web","","quit"),
+    true,"menu");
+  bindMenu(p)}
+function subMenu(title,rows){const p=pop($("more"),`<div class="mi" data-a="back">${svg("back")}<span class="ml">${title}</span></div>${msep}${rows}`,true,"menu");bindMenu(p)}
+function bindMenu(p){p.querySelectorAll("[data-a]").forEach(e=>e.onclick=ev=>{ev.stopPropagation();menuAct(e.dataset.a,p)})}
+function askClear(){const p=pop($("more"),`<div class="nt">Supprimer l'historique, les cookies et le cache ? Vous serez déconnecté des sites visités.</div><div class="mi" data-a="clr-ok">${svg("trash")}<span class="ml">Supprimer maintenant</span></div><div class="mi" data-a="back">${svg("back")}<span class="ml">Annuler</span></div>`,true,"menu");bindMenu(p)}
+async function menuAct(a,p){
+  const hide=()=>{$("pop").style.display="none"};
+  switch(a){
+    case"nt":hide();newTab("home");break;
+    case"nw":hide();window.wwwApi.newWindow(false);break;
+    case"np":hide();window.wwwApi.newWindow(true);break;
+    case"zi":case"zo":zoomBy(a==="zi"?.1:-.1);$("zv").textContent=Math.round(zoomOf()*100)+" %";break;
+    case"full":hide();window.wwwApi.fullscreen();break;
+    case"fav":favPop($("favs"));break;
+    case"hist":hide();newTab("hist");break;
+    case"dl":hide();newTab("dl");break;
+    case"tg":subMenu("Groupes d'onglets",row("x","Fermer les autres onglets","","cto")+row("x","Fermer les onglets à droite","","ctr")+row("page","Dupliquer l'onglet","","dup"));break;
+    case"cto":hide();tabs.filter(t=>t!==cur).forEach(t=>{t.el.remove();clearInterval(t._r)});tabs=[cur];draw();break;
+    case"ctr":{hide();const i=tabs.indexOf(cur);tabs.slice(i+1).forEach(t=>{t.el.remove();clearInterval(t._r)});tabs=tabs.slice(0,i+1);draw();break}
+    case"dup":hide();if(cur.kind==="web")newTab("web",cur.url);else newTab(cur.kind);break;
+    case"ex":subMenu("Extensions",'<div class="nt">Aucune extension installée.</div>');break;
+    case"clr":askClear();break;
+    case"clr-ok":hide();try{await window.wwwApi.clearData()}catch(e){}D.hist=[];save();toast("Données de navigation supprimées.");break;
+    case"print":hide();doPrint();break;
+    case"split":hide();toggleSplit();break;
+    case"cap":hide();setTimeout(doCapture,150);break;
+    case"find":hide();openFind();break;
+    case"tools":subMenu("Outils supplémentaires",row("full","Plein écran","F11","full")+row("tools","Outils de développement","F12","dev")+row("reload","Actualiser la page","F5","rel"));break;
+    case"dev":hide();if(cur.kind==="web")cur.el.openDevTools();break;
+    case"rel":hide();if(cur.kind==="web")cur.el.reload();break;
+    case"back":menuMain();break;
+    case"quit":window.close();break;
+  }}
+$("more").onclick=menuMain;
 $("conv").onclick=()=>newTab("web","https://copilot.microsoft.com");
 
 /* pages internes */
@@ -171,6 +251,12 @@ function fill(t){
     el.querySelector(".nt-apps").onclick=()=>$("appsb").click();
     el.querySelector("#ntq").focus();
     if(temp===null)loadTemp();
+  }else if(t.kind==="dl"){
+    const render=async()=>{let L=[];try{L=await window.wwwApi.downloads()}catch(e){}
+      t.el.innerHTML=`<div class="doc"><h1>Téléchargements</h1>${L.map((d,i)=>`<div class="row"><span data-o="${i}">${esc(d.name)}</span><span class="mut">${esc(d.state)} · <a data-s="${i}" style="cursor:pointer;color:#a23b3b">Afficher dans le dossier</a></span></div>`).join("")||'<p class="mut">Aucun téléchargement.</p>'}</div>`;
+      t.el.querySelectorAll("[data-o]").forEach(x=>x.onclick=()=>window.wwwApi.openItem(L[x.dataset.o].path));
+      t.el.querySelectorAll("[data-s]").forEach(x=>x.onclick=()=>window.wwwApi.showItem(L[x.dataset.s].path))};
+    render();t._r=setInterval(()=>{if(cur===t)render()},2500);
   }else if(t.kind==="hist"){
     t.el.innerHTML=`<div class="doc"><h1>Historique</h1>${D.hist.map(h=>`<div class="row"><span data-u="${esc(h.u)}">${esc(h.u)}</span><span class="mut">${new Date(h.d).toLocaleString("fr-FR")}</span></div>`).join("")||'<p class="mut">Vide.</p>'}</div>`;
     t.el.querySelectorAll("[data-u]").forEach(x=>x.onclick=()=>open(x.dataset.u));
@@ -188,10 +274,21 @@ $("reload").onclick=()=>{if(cur.kind==="web")cur.el.reload()};
 $("plus").onclick=()=>newTab("home");
 $("star").onclick=()=>{if(cur.kind!=="web")return;const i=D.bm.findIndex(b=>b.u===cur.url);
   if(i>=0)D.bm.splice(i,1);else D.bm.push({t:(cur.title||cur.url).slice(0,24),u:cur.url});save();draw();sync()};
-document.addEventListener("keydown",e=>{
-  if(e.ctrlKey&&e.key==="t"){e.preventDefault();newTab("home")}
-  if(e.ctrlKey&&e.key==="w"){e.preventDefault();closeTab(cur)}
-  if(e.ctrlKey&&e.key==="l"){e.preventDefault();$("url").focus()}
+function shortcut(c){switch(c){
+  case"ctrl+t":newTab("home");break;case"ctrl+w":closeTab(cur);break;
+  case"ctrl+n":window.wwwApi.newWindow(false);break;case"ctrl+shift+n":window.wwwApi.newWindow(true);break;
+  case"ctrl+h":newTab("hist");break;case"ctrl+j":newTab("dl");break;
+  case"ctrl+p":doPrint();break;case"ctrl+f":openFind();break;case"ctrl+l":$("url").focus();break;
+  case"ctrl+shift+s":doCapture();break;case"ctrl+shift+o":favPop($("favs"));break;case"ctrl+shift+Delete":askClear();break;
+  case"ctrl++":case"ctrl+=":zoomBy(.1);break;case"ctrl+-":zoomBy(-.1);break;
+  case"ctrl+0":cur.zoom=1;applyZoom(cur);break;
+  case"F11":window.wwwApi.fullscreen();break;case"F12":if(cur.kind==="web")cur.el.openDevTools();break}}
+document.addEventListener("keydown",e=>{const k=e.key.length===1?e.key.toLowerCase():e.key;let c=null;
+  if(e.ctrlKey&&!e.shiftKey&&["t","w","n","h","j","p","f","l","+","=","-","0"].includes(k))c="ctrl+"+k;
+  else if(e.ctrlKey&&e.shiftKey&&["n","s","o","Delete"].includes(k))c="ctrl+shift+"+k;
+  else if(k==="F11"||k==="F12")c=k;
+  if(c){e.preventDefault();shortcut(c)}
   if(e.key==="F5"&&cur.kind==="web")cur.el.reload()});
+if(window.wwwApi&&window.wwwApi.onShortcut)window.wwwApi.onShortcut(shortcut);
 if(window.wwwApi)window.wwwApi.onOpenUrl(u=>newTab("web",u));
 newTab("home");
