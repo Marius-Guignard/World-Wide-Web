@@ -117,19 +117,24 @@ $("favs").onclick=()=>favPop($("favs"));
 $("tabmenu").onclick=()=>{const p=pop($("tabmenu"),tabs.map(t=>`<div class="it" data-t="${t.id}">${esc(t.title)}</div>`).join(""));
   p.querySelectorAll("[data-t]").forEach(e=>e.onclick=()=>select(tabs.find(t=>t.id==e.dataset.t)))};
 $("ext").onclick=()=>pop($("ext"),'<div class="nt">Aucune extension installée.</div>',true);
-const PROV={google:{n:"Google",login:"https://accounts.google.com/signin",acct:"https://myaccount.google.com",c:"#4285f4"},ms:{n:"Microsoft",login:"https://login.live.com",acct:"https://account.microsoft.com",c:"#00a4ef"}};
-function drawProf(){const b=$("prof");b.innerHTML=D.prof&&D.prof.name?esc(D.prof.name[0].toUpperCase()):svg("person");b.title=D.prof&&D.prof.name?D.prof.name:"Se connecter"}
+const PROV={google:{n:"Google",acct:"https://myaccount.google.com",c:"#4285f4"},microsoft:{n:"Microsoft",acct:"https://account.microsoft.com",c:"#00a4ef"}};
+function drawProf(){const b=$("prof"),p=D.prof;
+  b.innerHTML=p&&p.photo?`<img src="${esc(p.photo)}">`:p&&p.name?esc(p.name[0].toUpperCase()):svg("person");
+  b.title=p&&p.name?p.name:"Se connecter"}
+function avatarHtml(p){return p.photo?`<img class="pp" src="${esc(p.photo)}">`:`<div class="pp">${esc((p.name||"?")[0].toUpperCase())}</div>`}
 $("prof").onclick=()=>{
   const a=$("prof"),pr=D.prof;
   if(pr&&pr.name){const v=PROV[pr.prov];
-    const p=pop(a,`<div class="nt"><b>${esc(pr.name)}</b><br><span class="mut">Compte ${v.n}</span></div><div class="it" data-u="${v.acct}">Gérer mon compte ${v.n}</div><div class="it" data-a="out">Se déconnecter</div>`,true);
+    const p=pop(a,`<div class="pcard">${avatarHtml(pr)}<div><b>${esc(pr.name)}</b>${pr.email?`<br><span class="mut">${esc(pr.email)}</span>`:""}</div></div><div class="nt">Service de connexion : <b style="color:${v.c}">${v.n}</b></div><div class="it" data-u="${v.acct}">Gérer mon compte ${v.n}</div><div class="it" data-a="out">Se déconnecter</div>`,true);
     p.querySelector("[data-a=out]").onclick=async()=>{try{await window.wwwApi.logout()}catch(e){}D.prof=null;save();drawProf();p.style.display="none"};
   }else{
-    const p=pop(a,`<div class="nt">Connectez-vous pour retrouver vos comptes sur les sites.</div><div class="it" data-a="google"><span style="color:#4285f4;font-weight:700">G</span>Continuer avec Google</div><div class="it" data-a="ms"><span style="color:#00a4ef;font-weight:700">M</span>Continuer avec Microsoft</div>`,true);
-    p.querySelectorAll("[data-a]").forEach(x=>x.onclick=()=>{const k=x.dataset.a,v=PROV[k];
-      newTab("web",v.login);
-      const q=pop(a,`<div class="nt">Connectez-vous à ${v.n} dans l'onglet qui vient de s'ouvrir, puis indiquez le nom à afficher :</div><input id="pn" placeholder="Votre prénom"><button class="ok" id="pok">Enregistrer le profil</button>`,true);
-      q.querySelector("#pok").onclick=()=>{const n=q.querySelector("#pn").value.trim();if(!n)return;D.prof={name:n,prov:k};save();drawProf();q.style.display="none"}});
+    const p=pop(a,`<div class="nt">Connectez-vous pour afficher votre photo et votre adresse e-mail.</div><div class="it" data-a="google"><span style="color:#4285f4;font-weight:700">G</span>Continuer avec Google</div><div class="it" data-a="microsoft"><span style="color:#00a4ef;font-weight:700">M</span>Continuer avec Microsoft</div>`,true);
+    p.querySelectorAll("[data-a]").forEach(x=>x.onclick=async()=>{const k=x.dataset.a,v=PROV[k];
+      const q=pop(a,`<div class="nt">Connexion ${v.n} en cours… terminez dans la page qui s'est ouverte dans votre navigateur.</div>`,true);
+      let r;try{r=await window.wwwApi.login(k)}catch(e){r={error:"reseau"}}
+      if(r&&!r.error){D.prof=r;save();drawProf();q.style.display="none";return}
+      const msg={config:`La connexion ${v.n} n'est pas encore configurée. Suivez la section « Connexion Google / Microsoft » du fichier README.md, puis relancez l'appli.`,annule:"Connexion annulée ou expirée.",jeton:"Le service a refusé la connexion. Vérifiez les identifiants dans oauth.json.",reseau:"Connexion impossible. Vérifiez votre accès internet."}[r&&r.error]||"Erreur de connexion.";
+      pop(a,`<div class="nt">${esc(msg)}</div>`,true)})
   }};
 drawProf();
 $("more").onclick=()=>{const p=pop($("more"),'<div class="it" data-a="nt">Nouvel onglet<span style="margin-left:auto;color:#888">Ctrl+T</span></div><div class="it" data-a="h">Historique</div><div class="it" data-a="f">Favoris</div><div class="it" data-a="q">Quitter</div>',true);

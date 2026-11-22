@@ -1,0 +1,4 @@
+{
+  "google": { "clientId": "COLLER-ICI-L-ID-CLIENT-GOOGLE", "clientSecret": "COLLER-ICI-LE-CODE-SECRET-GOOGLE" },
+  "microsoft": { "clientId": "COLLER-ICI-L-ID-APPLICATION-MICROSOFT" }
+}
