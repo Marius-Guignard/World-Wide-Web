@@ -80,3 +80,9 @@ webview.on{display:flex}
 #pop .nt{padding:10px;color:#666}
 #pop input{width:100%;margin:4px 0;padding:8px 10px;border:1px solid #bbb;border-radius:6px;font:inherit;user-select:text}
 #pop button.ok{margin-top:6px;background:#b0463f;color:#fff;padding:7px 16px;border-radius:6px}
+
+.newtab.photo::before{display:none}
+.nt-top .pen{cursor:pointer;padding:4px;border-radius:8px}.nt-top .pen:hover{background:#ffffff33}
+.avatar{display:flex;align-items:center;justify-content:center;flex:none}
+.avatar svg{width:18px;height:18px}
+#pop .it span{width:18px;text-align:center}

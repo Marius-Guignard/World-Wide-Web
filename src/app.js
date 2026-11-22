@@ -23,10 +23,26 @@ const ENGINE="https://www.google.com/search?q=";
 const $=id=>document.getElementById(id);
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const SC0=[["Convertio","https://convertio.co","#e5322d"],["Edifice","https://www.edifice.io","#7c5cff"],["Espace inscrit","https://inscrits.cned.fr","#0a7d6e"],["YouTube","https://www.youtube.com","#ff0000"],["Tinkercad","https://www.tinkercad.com","#1477d2"],["Clinique Vétérinaire","https://www.google.com/search?q=clinique+vétérinaire","#2a6fb0"]].map(s=>({t:s[0],u:s[1],c:s[2]}));
-let D={bm:[],hist:[],sc:SC0};
+let D={bm:[],hist:[],sc:SC0,bg:null};
 try{const r=localStorage.getItem("www2");if(r)D=Object.assign(D,JSON.parse(r))}catch(e){}
 const save=()=>{try{localStorage.setItem("www2",JSON.stringify(D))}catch(e){}};
 let tabs=[],cur=null,nid=1,editing=false,temp=null;
+
+
+/* arrière-plan */
+const PRESETS={aurore:["Aurore","linear-gradient(160deg,#0b1d3a,#0f5e5a 45%,#6b3fa0 80%,#d46fa0)"],ocean:["Océan","linear-gradient(180deg,#0a3d62,#1e90c8 55%,#9fd8ef)"],foret:["Forêt","linear-gradient(180deg,#0f2a1d,#1f5c3b 55%,#7fb069)"],couchant:["Coucher de soleil","linear-gradient(180deg,#2b1055,#c0392b 55%,#f7b733)"],sombre:["Sombre","#14171c"]};
+function applyBg(el){
+  const b=D.bg;el.style.background="";el.classList.remove("photo");
+  if(!b)return;
+  if(b.k==="img")el.style.background=`url("${b.v}") center/cover no-repeat`;
+  else if(PRESETS[b.v])el.style.background=PRESETS[b.v][1];
+  el.classList.add("photo");
+}
+function pickImg(cb){const i=document.createElement("input");i.type="file";i.accept="image/*";
+  i.onchange=()=>{const f=i.files[0];if(!f)return;const r=new FileReader();
+    r.onload=()=>{const im=new Image();im.onload=()=>{const k=Math.min(1,1920/im.width);const c=document.createElement("canvas");
+      c.width=Math.round(im.width*k);c.height=Math.round(im.height*k);c.getContext("2d").drawImage(im,0,0,c.width,c.height);cb(c.toDataURL("image/jpeg",0.85))};im.src=r.result};
+    r.readAsDataURL(f)};i.click()}
 
 /* icônes fixes */
 $("tabmenu").innerHTML=svg("chev");$("plus").innerHTML=svg("plus");
@@ -119,7 +135,15 @@ function fill(t){
     el.querySelector("#nts").onsubmit=e=>{e.preventDefault();open(el.querySelector("#ntq").value)};
     el.querySelectorAll(".tile[data-u]").forEach(x=>x.onclick=e=>{if(e.target.dataset.r!==undefined)return;open(x.dataset.u)});
     el.querySelectorAll("[data-r]").forEach(x=>x.onclick=e=>{e.stopPropagation();D.sc.splice(+x.dataset.r,1);save();fill(t)});
-    el.querySelector("#pen").onclick=()=>{editing=!editing;fill(t)};
+    applyBg(el);
+    el.querySelector("#pen").onclick=()=>{
+      const pr=Object.keys(PRESETS).map(k=>`<div class="it" data-p="${k}">Fond : ${PRESETS[k][0]}</div>`).join("");
+      const p=pop(el.querySelector("#pen"),`<div class="it" data-a="img">${svg("pen")}Choisir une image sur mon PC…</div>${pr}<div class="it" data-a="reset">Rétablir l'arrière-plan d'origine</div><div class="it" data-a="edit">${editing?"Terminer la modification des raccourcis":"Modifier les raccourcis"}</div>`,true);
+      p.querySelectorAll("[data-p]").forEach(x=>x.onclick=()=>{D.bg={k:"preset",v:x.dataset.p};save();p.style.display="none";applyBg(el)});
+      p.querySelectorAll("[data-a]").forEach(x=>x.onclick=()=>{const a=x.dataset.a;p.style.display="none";
+        if(a==="img")pickImg(v=>{D.bg={k:"img",v};save();applyBg(el)});
+        if(a==="reset"){D.bg=null;save();applyBg(el)}
+        if(a==="edit"){editing=!editing;fill(t)}})};
     el.querySelector("#addsc").onclick=()=>{const p=pop(el.querySelector("#addsc"),'<input id="sn" placeholder="Nom"><input id="su" placeholder="Adresse (ex : youtube.com)"><button class="ok" id="sok">Ajouter</button>');
       p.querySelector("#sok").onclick=()=>{const n=p.querySelector("#sn").value.trim(),u=toUrl(p.querySelector("#su").value);
         if(n&&u&&!u.startsWith(ENGINE)){D.sc.push({t:n,u,c:"#444"});save();p.style.display="none";fill(t)}}};
